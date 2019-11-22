@@ -3,7 +3,7 @@
         "template": "python3-http-debian-slim",
         "platform": "x86_64",
         "language": "Python 3",
-        "source": "TECO-modified openfaas template",
+        "source": "TECO",
         "description": "Modified python3-http template to use debian-slim instead of python as a basis.",
         "repo": "https://gitlab.teco.edu/kaucher/openfaas-templates.git",
         "official": "false"
