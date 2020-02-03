@@ -5,7 +5,7 @@
         "language": "Python 3",
         "source": "TECO",
         "description": "Modified python3-http template to use debian-slim instead of python as a basis.",
-        "repo": "https://gitlab.teco.edu/kaucher/openfaas-templates.git",
+        "repo": "https://github.com/SmartAQnet/FAAS-Functions.git",
         "official": "false"
     }
 ]
