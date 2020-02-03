@@ -11,10 +11,10 @@ import copy
 import sys
 import os
 
-url = "https://api.smartaq.net/v1.0/"
+url = "https://api.smartaq.net/v1.0"
 
 def getdatastreamIDs(thingid):
-    query = url + "Things('" + thingid + "')/Datastreams?$select=@iot.id"
+    query = url + "/Things('" + thingid + "')/Datastreams?$select=@iot.id"
     return(list(map(lambda x: x["@iot.id"], json.loads(requests.get(query).text)["value"])))
 
 def datafromlink(link):
@@ -22,9 +22,11 @@ def datafromlink(link):
 
 def grabdata(ds, from_date, to_date):
     top = 2147483647
-    url = "https://api.smartaq.net/v1.0/Datastreams"
-    link=url + "('" + ds + "')/Observations?$select=phenomenonTime,result&$filter=phenomenonTime gt " + from_date + " and phenomenonTime lt " + to_date + "&$top=" + str(top);
+    link=url + "/Datastreams('" + ds + "')/Observations?$select=phenomenonTime,result&$filter=phenomenonTime gt " + from_date + " and phenomenonTime lt " + to_date + "&$top=" + str(top);
 
+    metadata = json.loads(requests.get(url + "/Datastreams('" + ds + "')?$expand=ObservedProperty,Thing,Sensor").text)
+
+    
     resultframe = pd.DataFrame()
     morenextlinks=True;
 
@@ -43,7 +45,7 @@ def grabdata(ds, from_date, to_date):
 
         if(len(obs)>0):
             df = pd.DataFrame.from_dict(obs).set_index("phenomenonTime")
-            df.rename(columns={'result': ds},inplace=True)
+            df.rename(columns={'result': metadata["name"] + " (id: " + metadata["@iot.id"] + ")"},inplace=True)
             resultframe = pd.concat([resultframe, df], sort=True)
             resultframe.index.name = "phenomenonTime"
 
