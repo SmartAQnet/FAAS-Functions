@@ -1,12 +1,12 @@
 version: 1.0
 provider:
   name: openfaas
-  gateway: http://127.0.0.1:8080
+  gateway: https://api.smartaq.net:8081
 functions:
   thing-to-csv:
-    lang: python3-http-debian-slim
+    lang: python3-http-debian
     handler: ./thing-to-csv
-    image: thing-to-csv:latest
+    image: registry.teco.edu/smartaqnet/faas/thing-to-csv:latest
     environment:
       read_timeout: 2m
       write_timeout: 2m
