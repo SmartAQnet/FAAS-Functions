@@ -21,7 +21,7 @@ def datafromlink(link):
     return(json.loads(requests.get(link).text))
 
 def grabdata(ds, from_date, to_date):
-    top = 2147483647
+    top = 2147483646
     link=url + "/Datastreams('" + ds + "')/Observations?$select=phenomenonTime,result&$filter=phenomenonTime gt " + from_date + " and phenomenonTime lt " + to_date + "&$top=" + str(top);
 
     metadata = json.loads(requests.get(url + "/Datastreams('" + ds + "')?$expand=ObservedProperty,Thing,Sensor").text)
