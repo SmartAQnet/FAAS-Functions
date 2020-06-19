@@ -1,0 +1,13 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: https://api.smartaq.net:8081
+functions:
+  aggregator:
+    lang: python3-http-debian
+    handler: ./aggregator
+    image: registry.teco.edu/smartaqnet/faas/aggregator:latest
+    environment:
+      read_timeout: 2m
+      write_timeout: 2m
+      exec_timeout: 2m
