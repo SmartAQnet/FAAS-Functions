@@ -4,90 +4,80 @@ import json, requests
 import pandas as pd
 import numpy as np
 
-def querytodict(s): 
-    try:
-        return dict((x.split("=")[0],x.split("=")[1]) for x in query.split("?")[1].split("&"))
-    except: 
-        return {}
-
-def dicttoquery(d):
-    try:
-        return "&".join(list(map(lambda x: x + "=" + d[x],d.keys())))
-    except:
-        return ""
-
-
-def setupquery(query,timestamp_from,timestamp_to):
-
-    timequery = "resultTime gt " + timestamp_from + " and resultTime lt " + timestamp_to
-    selectquery = "result,resultTime"
-
-    try:
-        [queryprefix,querysuffix] = query.split("?")
-    except: 
-        [queryprefix,querysuffix] = [query,""]
-
-    #if there is actually a query
-    if "=" in querysuffix:
-        filterparams=querytodict(querysuffix)
-
-        #if "filter" is being used in the query
-        if("$filter" in filterparams.keys()): 
-
-            #if already filtering by phenomenonTime -> use that instead of query
-            if("phenomenonTime" in filterparams["$filter"]):
-                print("phenomenonTime already filtered, using that for aggregation")
-
-            #else add the time query to the filter
-            else: 
-                filterparams["$filter"] += "," + timequery
-
-        #else just add the filter
-        else: 
-            filterparams["$filter"]=timequery
-
-
-        filterparams["$select"] = selectquery
-
-        querysuffix = dicttoquery(filterparams)
-
-    #else just add the query
-    else: 
-        querysuffix = "$filter=" + timequery + "&" + "$select=" + selectquery
-
-    return([queryprefix, querysuffix])
-
-
-def getandaggregate(query,timestamp_from,timestamp_to):
+def getdata(initiallink):
     
-    url = "https://api.smartaq.net/v1.0"
-        
-    [queryprefix, querysuffix]=setupquery(query,timestamp_from,timestamp_to)
-
-    #get the data
-    datarequest = json.loads(requests.get(url + queryprefix + "?" + querysuffix).text)
-
-    #prepare as dataframe
-    data=pd.Series(list(map(lambda x: x["result"],datarequest["value"])),index=list(map(lambda x: pd.to_datetime(x["resultTime"]),datarequest["value"])))
-
-    #aggregate the data
-    agg=data.resample("1T").agg([np.sum, np.mean, np.std])[["mean","std"]]
-
-    #output the result as a dataframe
-    result=pd.DataFrame(data=agg[["mean"]].values,index=agg.index.map(lambda x: x.isoformat() + ".000Z"),columns=["result"])
+    link=initiallink
+    data=pd.Series(dtype="float64")
+    morenextlinks=True
     
-    return(result)
-    
+    while(morenextlinks):
+
+        try:
+            #get the data
+            datarequest=json.loads(requests.get(link).text)
+            if(datarequest['value']==[]):
+                #print('no observations under this link')
+                break
+
+        except: 
+            #print('no observations under this link')
+            break
+
+
+        if(len(datarequest['value'])>0):
+            #append chunks
+            datachunk=pd.Series(list(map(lambda x: x["result"],datarequest["value"])),index=list(map(lambda x: pd.to_datetime(x["resultTime"]),datarequest["value"])))
+            data=data.append(datachunk)
+
+            try:
+                link=datarequest["@iot.nextLink"]
+            except:
+                morenextlinks=False;
+                break
+    return data
+
 
 def handle(event, context):
     
-    result=getandaggregate("/Datastreams('saqn%3Ads%3A7540858')/Observations","2019-07-02T15:24:12.000Z","2019-07-03T15:24:12.000Z")
+    
+    t=5
+    
+    url = "https://api.smartaq.net/v1.0"
+    frostquery="/Datastreams('saqn%3Ads%3Afc82203')/Observations?$filter=phenomenonTime%20gt%202020-05-20T02:00:00.000Z%20and%20phenomenonTime%20lt%202020-05-22T02:00:00.000Z"
+    
+    datalink = url + frostquery
+    
+    
+    freq=str(t) + "T"
+    
+    data=getdata(datalink)
+    
+    #check for empty link
+    try:
+        data[0]
+    except: 
+        return {
+            "statusCode": 404,
+            "body": {}, 
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        }
+    
+    #aggregate the data
+    agg=data.resample(freq).agg([np.sum, np.mean, np.std])
+    agg["count"]=(agg["sum"]/agg["mean"]).apply(int)
+    
+    #output the result as a dataframe
+    result=pd.DataFrame({"result": list(agg["mean"]),"resultTime": list(agg.index.map(lambda x: x.isoformat().split("+")[0] + ".000Z")),"phenomenonTime": list(agg.index.map(lambda x: (x-pd.Timedelta(str(t) + "m")).isoformat().split("+")[0] + ".000Z" + "/" + x.isoformat().split("+")[0] + ".000Z")), "parameters": json.loads(agg[["count","std"]].to_json(orient="records"))})
+    
     
     
     return {
         "statusCode": 200,
-        "body": result.to_json(),
+        "body": result.to_json(orient='records'), 
         "headers": {
             "Content-Type": "application/json"
         }
     }
+
