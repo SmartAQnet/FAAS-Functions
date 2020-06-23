@@ -39,18 +39,17 @@ def getdata(initiallink):
 
 def handle(event, context):
     
-    
-    t=5
+    t = event.query["$aggregate"]
+    realkeys = list(filter(lambda x: x != "$aggregate", event.query.keys()))
+    urlquery = "&".join(list(map(lambda x: x + "=" + event.query[x], realkeys)))
+    print(t)
     
     url = "https://api.smartaq.net/v1.0"
-    frostquery="/Datastreams('saqn%3Ads%3Afc82203')/Observations?$filter=phenomenonTime%20gt%202020-05-20T02:00:00.000Z%20and%20phenomenonTime%20lt%202020-05-22T02:00:00.000Z"
-    
-    datalink = url + frostquery
+    frostquery=url + event.path + "?" + urlquery
     
     
     freq=str(t) + "T"
-    
-    data=getdata(datalink)
+    data=getdata(frostquery)
     
     #check for empty link
     try:
@@ -80,4 +79,3 @@ def handle(event, context):
             "Content-Type": "application/json"
         }
     }
-
